@@ -8,6 +8,11 @@ import {Point, Texture} from "pixi.js";
  * @hidden
  */
 const helperPoint = new Point();
+/**
+ * The signature (type) of Custom path function.
+ * It takes a numbers `x`, and returns either corresponding `y` or `{x,y}`;
+ */
+export type IPathFunction = (x: number) => number | { x: number, y: number };
 
 /**
  * A hand picked list of Math functions (and a couple properties) that are
@@ -158,8 +163,24 @@ export class PathParticle extends Particle
 				this.movement += speed * delta;
 			}
 			//set up the helper point for rotation
-			helperPoint.x = this.movement;
-			helperPoint.y = this.path(this.movement);
+			let calculatedValue = this.path(this.movement);
+			if (calculatedValue && typeof calculatedValue.x === "number" && typeof calculatedValue.y === "number")
+			{
+				helperPoint.x = calculatedValue.x;
+				helperPoint.y = calculatedValue.y;
+			}
+			else if (typeof calculatedValue === "number") 
+			{
+				helperPoint.x = this.movement;
+				helperPoint.y = calculatedValue;
+			}
+			else
+			{
+				if(ParticleUtils.verbose)
+					console.error("PathParticle: error in parsing path expression.");
+				helperPoint.x = this.movement;
+				helperPoint.y = this.movement;
+			}
 			ParticleUtils.rotatePoint(this.initialRotation, helperPoint);
 			this.position.x = this.initialPosition.x + helperPoint.x;
 			this.position.y = this.initialPosition.y + helperPoint.y;
@@ -196,14 +217,17 @@ export class PathParticle extends Particle
 	 * @param extraData The extra data from the particle config.
 	 * @return The parsed extra data.
 	 */
-	public static parseData(extraData: {path:string})
+	public static parseData(extraData: {path:string | IPathFunction})
 	{
 		let output: any = {};
 		if(extraData && extraData.path)
 		{
 			try
 			{
-				output.path = parsePath(extraData.path);
+				if(typeof extraData.path === "function")
+					output.path = extraData.path;
+				else
+					output.path = parsePath(extraData.path as string);	
 			}
 			catch(e)
 			{

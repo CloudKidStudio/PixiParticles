@@ -158,6 +158,9 @@
 
 				renderer.render(stage);
 			};
+
+			window.emitter = emitter;
+			window.stage = stage;
 		});
 	};
 
